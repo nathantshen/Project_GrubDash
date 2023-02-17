@@ -1,16 +1,7 @@
-# GrubDash Backend and API
+GrubDash Backend and API
 GrubDash is a fictional company that operates an online food ordering and food delivery platform. 
-
-For this Thinkful project, I set up a RESTful API, wrote custom validation functions, created route handlers, and built specific API endpoints. 
+ I set up a RESTful API, wrote custom validation functions, created route handlers, and built specific API endpoints. 
 Of note, the front-end application was provided for this assignment.
-
-## Links
-- [App Demo](https://grub-dash-front-end-xi.vercel.app/)
-- [App Documentation](https://github.com/angelalouh/project-grubdash-app)
-
-## Screenshot
-### Home Page:
-![home](/screenshots/home.jpg)
 
 ## Technology
 - Built with Node.js and Express server framework
@@ -18,7 +9,8 @@ Of note, the front-end application was provided for this assignment.
 ## API Documentation
 All requests return JSON response. All post requests require application/json body, and return JSON response.
 
-### Endpoints for dishes:
+### FUNCTIONS
+
 **Get Dishes:** GET to `/dishes`
 - Requests all existing dish data.
 - Successful GET requests will return an array of JSON objects representing the saved dishes. The response from the server should look like the following:
