@@ -8,6 +8,7 @@ router
   .route("/")
   .get(controller.getAll)
   .post(controller.createDish)
+  .all(methodNotAllowed)
 
 router
   .route("/:dishId")
