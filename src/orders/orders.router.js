@@ -8,6 +8,7 @@ router
   .get(controller.getOrder)
   .put(controller.updateOrder)
   .delete(controller.deleteOrder)
+  .all(methodNotAllowed)
 router
   .route("/")
   .get(controller.getAll)
