@@ -192,15 +192,15 @@ function list(req, res) {
 }
 
 module.exports = {
-  create: [
+  createOrder: [
     hasDeliver,
     hasNumber,
     hasDishes,
     hasDishQuanity,
     create,
   ],
-  getOne: [orderExists, read],
-  update: [
+  getOrder: [orderExists, read],
+  updateOrder: [
     orderExists,
     hasDeliver,
     hasNumber,
@@ -210,6 +210,6 @@ module.exports = {
     hasStatus,
     update,
   ],
-  delete: [orderExists, orderPending, destroy],
-  getAll : list
+  deleteOrder: [orderExists, orderPending, destroy],
+  getAll: list
 };
