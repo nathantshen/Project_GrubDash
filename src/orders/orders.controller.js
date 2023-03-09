@@ -1,115 +1,215 @@
 const path = require("path");
-
-
-// Use the existing order data
 const orders = require(path.resolve("src/data/orders-data"));
-const dishes = require(path.resolve("src/data/dishes-data"))
-// Use this function to assigh ID's when necessary
+
+
 const nextId = require("../utils/nextId");
 
-// TODO: Implement the /orders handlers needed to make the tests pass
-function getAll(req, res, next){
-  res.json({data: orders})
+// Validation Functions
+function hasDeliver(req, res, next) {
+  const { data = {} } = req.body;
+
+  if (!data.deliverTo) {
+    next({
+      status: 400,
+      message: "Order must include a deliverTo property.",
+    });
+  }
+  // Passing the reqest body data to the next middleware/handler functions using "response.locals"
+  res.locals.reqBody = data;
+  return next();
 }
 
-function createOrder(req, res, next) {
-  const { data: { deliverTo , mobileNumber, status , dishes } } = req.body;
-  if (Array.isArray(dishes)){
-      var validDishes = dishes.every((dish)=>{
-    if (dish.quantity && Number.isInteger(dish.quantity) && dish.quantity > 0){
-      return true
-    } else {
-      return false
-    }
-  })
+function hasNumber(req, res, next) {
+  const reqBody = res.locals.reqBody;
+
+  if (!reqBody.mobileNumber) {
+    next({
+      status: 400,
+      message: "Order must include a mobileNumber property.",
+    });
+  }
+
+  return next();
 }
-  if (dishes && Array.isArray(dishes) && deliverTo && mobileNumber && validDishes && dishes.length > 0) {
-    const newOrder = {
-    id: orders.length +2 +"",
-    deliverTo,
-    mobileNumber,
-    status,
-    dishes,
+
+function hasDishes(req, res, next) {
+  const reqBody = res.locals.reqBody;
+
+  if (!reqBody.dishes || !reqBody.dishes.length || !Array.isArray(reqBody.dishes)) {
+    next({
+      status: 400,
+      message: "Order must include at least one dish.",
+    });
+  }
+
+  return next();
+}
+
+function hasDishQuanity(req, res, next) {
+  const dishes = res.locals.reqBody.dishes;
+
+  const withoutQuantity = dishes.reduce(
+    (acc, dish, index) => {
+      if (
+        !dish.quantity ||
+        !dish.quantity > 0 ||
+        typeof dish.quantity !== "number"
+      ) {
+        acc.push(index);
+        return acc;
+      }
+      return acc;
+    },
+    []
+  );
+
+  if (!withoutQuantity.length) {
+    return next();
+  }
+  if (withoutQuantity.length > 1) {
+    const Index = withoutQuantity.join(", ");
+
+    next({
+      status: 400,
+      message: `Dishes ${Index} must have a quantity that is an integer greater than 0.`,
+    });
+  }
+
+  next({
+    status: 400,
+    message: `Dish ${withoutQuantity} must have a quantity that is an integer greater than 0.`,
+  });
+}
+
+function orderExists(req, res, next) {
+  const { orderId } = req.params;
+  const foundOrder = orders.find((order) => order.id === orderId);
+
+  if (foundOrder) {
+    res.locals.order = foundOrder;
+    res.locals.orderId = orderId;
+    return next();
+  }
+
+  next({
+    status: 404,
+    message: `No matching order is found for orderId ${orderId}.`,
+  });
+}
+
+
+function MatchId(req, res, next) {
+  const orderId = res.locals.orderId;
+  const reqBody = res.locals.reqBody;
+
+  if (reqBody.id) {
+    if (reqBody.id === orderId) {
+      return next();
+    }
+    next({
+      status: 400,
+      message: `Order id does not match route id. Order: ${reqBody.id}, Route: ${orderId}`,
+    });
+  }
+
+  return next();
+}
+
+function hasStatus(req, res, next) {
+  const reqBody = res.locals.reqBody;
+
+  if (!reqBody.status || reqBody.status === "invalid") {
+    next({
+      status: 400,
+      message:
+        "Order must have a status of pending, preparing, out-for-delivery, or delivered.",
+    });
+  }
+
+  if (reqBody.status === "delivered") {
+    next({
+      status: 400,
+      message: "A delivered order cannot be changed.",
+    });
+  }
+
+  return next();
+}
+
+function orderPending(req, res, next) {
+  const order = res.locals.order;
+
+  if (order.status !== "pending") {
+    next({
+      status: 400,
+      message: "An order cannot be deleted unless it is pending.",
+    });
+  }
+
+  return next();
+}
+
+// Route Handlers
+function destroy(req, res) {
+  const orderId = res.locals.orderId;
+  const orderIndex = orders.findIndex((order) => order.id === orderId);
+  orders.splice(orderIndex, 1);
+  res.sendStatus(204);
+}
+
+function update(req, res) {
+  const reqBody = res.locals.reqBody;
+  const order = res.locals.order;
+
+  
+  const existingOrder = Object.getOwnPropertyNames(order);
+
+  for (let i = 0; i < existingOrder.length; i++) {
+    // Updating each value if there is a difference between the existing order and the req body order
+    if (existingOrder[i] !== "id" && order[existingOrder[i]] !== reqBody[existingOrder[i]]) {
+      order[existingOrder[i]] = reqBody[existingOrder[i]];
+    }
+  }
+  res.json({ data: order });
+}
+
+function read(req, res) {
+  res.json({ data: res.locals.order });
+}
+
+function create(req, res) {
+  const reqBody = res.locals.reqBody;
+  const newOrder = {
+    ...reqBody,
+    id: nextId(),
   };
   orders.push(newOrder);
   res.status(201).json({ data: newOrder });
-  } else {
-    next({status: 400, message: "quantity, 1, 0, 2, deliverTo, mobileNumber, dishes missing"});
-  }
 }
 
-
-function getOrder(req, res, next){
-   const { orderId } = req.params;
-  const foundOrder = orders.find((order)=>{
-    if (order.id == Number(orderId)){
-      return true
-    }
-  });
-  if (foundOrder) {
-   res.json({ data: foundOrder });
-  } else {
-    next({
-      status: 404,
-      message: `id not found: ${req.params.orderId}`,
-    });
-  }
-}
-
-function updateOrder(req, res, next) {
-  const { orderId } = req.params;
-  const { data: {id , deliverTo , mobileNumber, status, dishes} } = req.body 
-  const foundOrder = orders.find((order) => order.id === orderId);
-    if (!foundOrder){
-    return next({
-      status: 404,
-      message: `Order does not exist: ${req.params.orderId}`,
-    });
-  }
-  
-   if (Array.isArray(dishes)){
-      var validDishes = dishes.every((dish)=>{
-    if (dish.quantity && Number.isInteger(dish.quantity) && dish.quantity > 0){
-      return true
-    } else {
-      return false
-    }
-  })
-}
-
-  if (id && orderId != id || !deliverTo || !mobileNumber || !status || !dishes || !Array.isArray(dishes) || foundOrder.status === "delivered" || (status != "pending" && status != "preparing" && status != "out-for-delivery") || !validDishes || !dishes.length){
-     return next({
-      status: 400,
-      message: `1, 0, 2, quantity, A delivered order cannot be changed, Order must have a status of pending, preparing, out-for-delivery, delivered, Order id does not match route id. Order: ${id}, Route: ${orderId}, id, deliverTo, mobileNumber, dishes missing`,
-    });
-   }
-
-      foundOrder.deliverTo = deliverTo;
-      foundOrder.mobileNumber = mobileNumber;
-      foundOrder.status = status;
-      foundOrder.dishes = dishes;
-      res.json({ data: foundOrder }); 
-}
-  
-function deleteOrder(req, res, next){
-  const { orderId } = req.params;
-  const index = orders.findIndex((order) => order.id === orderId);
-  
-  if (index == -1){
-    return next ({status:404, message: `${orderId} not found`})
-  } 
-  if (orders[index].status !== "pending"){
-     return next ({ status: 400, message: "An order cannot be deleted unless it is pending."});
-  }
-    const deleteOrder = orders.splice(index, 1);
-    next ({ status: 204, message: "DELETE"});
+function list(req, res) {
+  res.json({ data: orders });
 }
 
 module.exports = {
-  getAll,
-  getOrder,
-  createOrder,
-  getOrder,
-  updateOrder,
-  deleteOrder
-}
+  create: [
+    hasDeliver,
+    hasNumber,
+    hasDishes,
+    hasDishQuanity,
+    create,
+  ],
+  getOne: [orderExists, read],
+  update: [
+    orderExists,
+    hasDeliver,
+    hasNumber,
+    hasDishes,
+    hasDishQuanity,
+    MatchId,
+    hasStatus,
+    update,
+  ],
+  delete: [orderExists, orderPending, destroy],
+  getAll : list
+};
