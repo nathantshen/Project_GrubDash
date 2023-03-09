@@ -127,7 +127,7 @@ function list(req, res) {
 }
 
 module.exports = {
-  create: [
+  createDish: [
     hasName,
     hasDescription,
     hasPrice,
@@ -135,7 +135,7 @@ module.exports = {
     create,
   ],
   getOne: [dishExists, read],
-  update: [
+  updateDish: [
     dishExists,
     hasName,
     hasDescription,
